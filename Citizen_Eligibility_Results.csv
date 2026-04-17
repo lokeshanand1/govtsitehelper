@@ -1,0 +1,7 @@
+Scheme,Dimension,Question,Extracted_Answer,Confidence_Score
+NREGA,Eligibility,Who is eligible for this scheme?,bygram panchayats,0.3337
+NREGA,Benefits,What is the main benefit or provision of this scheme?,economic security,0.3258
+NREGA,Objective,What is the primary goal?,create durable assets,0.2276
+PMUY,Eligibility,Who is eligible for this scheme?,women ofBelow Poverty Line(BPL) families,0.6338
+PMUY,Benefits,What is the main benefit or provision of this scheme?,expanded access to clean cooking technologies,0.0808
+PMUY,Objective,What is the primary goal?,distribute 50 millionLPGconnections,0.0585
