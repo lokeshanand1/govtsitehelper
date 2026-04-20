@@ -1,7 +1,12 @@
 """
 GovScheme Advisor — NLP Recommendation Engine
-Uses rule-based filtering + semantic similarity for scheme matching.
+Uses rule-based filtering + semantic similarity + trained classifier for scheme matching.
 Lightweight: uses sklearn TF-IDF instead of heavy transformer models for speed.
+
+Scoring formula (when classifier is available):
+  final_score = (0.4 * rule_score) + (0.4 * tfidf_cosine_score) + (0.2 * classifier_boost)
+When classifier is unavailable, falls back to the original 2-signal formula with
+  equivalent proportional weights.
 """
 
 import re
@@ -10,6 +15,8 @@ from typing import List, Dict, Optional
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+
+from nlp.trainer import load_model, get_scheme_probabilities
 
 
 # ──────────────────────────────────────────────
@@ -32,7 +39,13 @@ HINDI_EXPLANATIONS = {
 
 
 class NLPEngine:
-    """NLP-based scheme recommendation engine."""
+    """NLP-based scheme recommendation engine with optional classifier boost.
+
+    The engine combines three scoring signals:
+    1. Rule-based eligibility check (hard constraints)
+    2. TF-IDF cosine similarity (semantic relevance)
+    3. Trained classifier boost (learned user→scheme mapping)
+    """
 
     def __init__(self):
         self.vectorizer = TfidfVectorizer(
@@ -44,6 +57,13 @@ class NLPEngine:
         self.scheme_vectors = None
         self.schemes = []
         self.scheme_texts = []
+
+        # Load trained classifier (if available on disk)
+        self.classifier = load_model()
+        if self.classifier:
+            print("  ✅ NLP classifier loaded from disk.")
+        else:
+            print("  ℹ️  No classifier found — running in TF-IDF-only mode.")
 
     def load_schemes(self, schemes: List[Dict]):
         """Index schemes for NLP search."""
@@ -273,6 +293,38 @@ class NLPEngine:
                 parts.append("middle income")
         return " ".join(parts).lower()
 
+    def reload_classifier(self):
+        """Reload the trained classifier from disk (e.g. after retraining)."""
+        self.classifier = load_model()
+
+    def get_classifier_boost(self, profile_text: str, scheme_id: str) -> float:
+        """Get the classifier's confidence score for a specific scheme.
+
+        Returns the predict_proba value for the given scheme_id, normalized
+        to [0, 1]. If the classifier is not loaded or the scheme_id is
+        unknown, returns 0.0 (graceful fallback).
+
+        Args:
+            profile_text: Natural-language user profile string
+            scheme_id: The scheme identifier to score
+
+        Returns:
+            Float in [0, 1] representing classifier confidence
+        """
+        if self.classifier is None:
+            return 0.0
+
+        if not hasattr(self, '_cached_profile_text') or self._cached_profile_text != profile_text:
+            self._cached_profile_text = profile_text
+            self._cached_probas = get_scheme_probabilities(profile_text)
+
+        return self._cached_probas.get(scheme_id, 0.0)
+
+    @property
+    def classifier_available(self) -> bool:
+        """Whether the trained classifier model is loaded and ready."""
+        return self.classifier is not None
+
     def semantic_search(self, query: str, top_k: int = 10) -> List[tuple]:
         """Search schemes by text query using TF-IDF similarity."""
         if self.scheme_vectors is None or not self.scheme_texts:
@@ -328,7 +380,25 @@ class NLPEngine:
             if user_profile.get("is_senior_citizen") and cat == "pension":
                 priority = 10
 
-            total = (elig_score * 0.5) + (nlp_score * 100 * 0.35) + (priority * 0.15)
+            # Classifier boost (0.0 if unavailable — graceful fallback)
+            clf_boost = self.get_classifier_boost(user_text, sid)
+
+            # Weighted scoring:
+            #   With classifier:  40% rule + 40% tfidf + 20% classifier
+            #   Without classifier: proportionally equivalent to original
+            #   (0.5 rule + 0.35 tfidf + 0.15 priority)
+            if self.classifier_available:
+                total = (
+                    (elig_score * 0.4) +
+                    (nlp_score * 100 * 0.4) +
+                    (clf_boost * 100 * 0.2)
+                )
+            else:
+                total = (elig_score * 0.5) + (nlp_score * 100 * 0.35) + (priority * 0.15)
+
+            # Add priority boost on top (small additive)
+            if self.classifier_available:
+                total += priority * 0.05
 
             results.append({
                 "scheme_id": sid,
@@ -338,6 +408,7 @@ class NLPEngine:
                 "description": scheme.get("description", ""),
                 "eligibility_score": round(elig_score, 1),
                 "nlp_relevance_score": round(nlp_score * 100, 1),
+                "classifier_score": round(clf_boost * 100, 1),
                 "total_score": round(total, 1),
                 "why_eligible": "; ".join(reasons),
                 "benefits": scheme.get("benefits", ""),

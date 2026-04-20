@@ -13,6 +13,7 @@ import os
 from models import UserProfile, SearchQuery, UserAuth, Token, SchemeModel
 from database import get_db
 from nlp.engine import nlp_engine
+from nlp.trainer import train_and_save, load_model_meta
 from scraper.scraper import run_full_scrape
 from seed_data import SCHEMES
 
@@ -116,6 +117,7 @@ async def recommend_schemes(profile: UserProfile):
     # Categorize results
     categorized = {
         "total": len(results),
+        "classifier_used": nlp_engine.classifier_available,
         "all": results,
         "scholarship": [r for r in results if r["category"] == "scholarship"],
         "pension": [r for r in results if r["category"] == "pension"],
@@ -279,6 +281,47 @@ async def get_analytics():
         "total_searches": total_searches,
         "categories": categories
     }
+
+
+@router.post("/admin/train", dependencies=[Depends(require_admin)])
+async def train_classifier():
+    """Train (or retrain) the NLP scheme classifier on current scheme data.
+
+    Generates synthetic training samples from scheme eligibility rules,
+    trains a TF-IDF + LogisticRegression pipeline, and saves to disk.
+    Also hot-reloads the classifier into the running NLP engine.
+    """
+    db = get_db()
+    schemes = []
+    async for s in db.schemes.find({"status": "active"}):
+        s.pop("_id", None)
+        schemes.append(s)
+
+    if not schemes:
+        raise HTTPException(status_code=400, detail="No schemes found to train on")
+
+    metrics = train_and_save(schemes)
+    nlp_engine.reload_classifier()
+
+    return {"status": "trained", "metrics": metrics}
+
+
+@router.get("/admin/model-info", dependencies=[Depends(require_admin)])
+async def get_model_info():
+    """Return metadata about the currently saved NLP classifier model.
+
+    Includes training timestamp, sample count, F1 score, and model path.
+    """
+    meta = load_model_meta()
+    if not meta:
+        return {
+            "status": "not_trained",
+            "classifier_loaded": nlp_engine.classifier_available,
+            "message": "No trained model found on disk. POST /api/admin/train to train."
+        }
+    meta["classifier_loaded"] = nlp_engine.classifier_available
+    meta["status"] = "trained"
+    return meta
 
 
 @router.get("/admin/users", dependencies=[Depends(require_admin)])

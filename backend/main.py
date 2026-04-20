@@ -21,6 +21,7 @@ from database import connect_db, close_db, get_db
 from api.routes import router
 from seed_data import SCHEMES
 from nlp.engine import nlp_engine
+from nlp.trainer import train_and_save, load_model, MODEL_PATH
 
 
 @asynccontextmanager
@@ -69,6 +70,20 @@ async def lifespan(app: FastAPI):
         schemes_list.append(s)
     nlp_engine.load_schemes(schemes_list)
     print(f"  ✅ NLP engine loaded with {len(schemes_list)} schemes")
+    
+    # Auto-train classifier on first boot if pkl doesn't exist
+    if not os.path.exists(MODEL_PATH):
+        print("  🧠 Training NLP classifier for the first time...")
+        metrics = train_and_save(schemes_list)
+        print(f"  ✅ NLP classifier trained and saved. "
+              f"Accuracy: {metrics['accuracy']}, F1: {metrics['f1_score_macro']}, "
+              f"Samples: {metrics['num_samples']}")
+        nlp_engine.reload_classifier()
+    else:
+        if nlp_engine.classifier_available:
+            print("  ✅ NLP classifier loaded from disk.")
+        else:
+            print("  ⚠️  Classifier pkl exists but failed to load.")
     
     print("  🚀 Server ready!\n")
     

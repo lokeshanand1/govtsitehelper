@@ -41,11 +41,28 @@ const Dashboard = () => {
               </p>
             </div>
             
-            <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start max-w-sm">
-              <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-3 shrink-0" />
-              <p className="text-sm text-blue-800">
-                These recommendations are sorted by relevance using semantic matching and rule-based filters.
-              </p>
+            <div className="flex flex-col gap-3 items-end">
+              {/* NLP Model Status Badge */}
+              <div className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold tracking-wide shadow-sm transition-colors ${
+                results.classifier_used
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                  : 'bg-amber-100 text-amber-800 border border-amber-200'
+              }`}>
+                <span className="mr-1.5">🧠</span>
+                NLP Model: {results.classifier_used ? 'Active' : 'TF-IDF Only'}
+                <span className={`ml-2 w-2 h-2 rounded-full ${
+                  results.classifier_used ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                }`}></span>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start max-w-sm">
+                <CheckCircle className="w-5 h-5 text-blue-600 mt-0.5 mr-3 shrink-0" />
+                <p className="text-sm text-blue-800">
+                  These recommendations are sorted by relevance using {results.classifier_used
+                    ? 'semantic matching, rule-based filters, and a trained NLP classifier.'
+                    : 'semantic matching and rule-based filters.'}
+                </p>
+              </div>
             </div>
           </div>
         </div>
