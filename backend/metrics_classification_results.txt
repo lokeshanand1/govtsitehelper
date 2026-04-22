@@ -1,0 +1,53 @@
+======================================================================
+CLASSIFICATION METRICS — GovScheme Advisor NLP Classifier
+Mode: 5-Fold Cross-Validation
+======================================================================
+
+Macro Precision:  0.3758 (±0.0249)
+Macro Recall:     0.3907 (±0.0118)
+Macro F1-Score:   0.3587 (±0.0141)
+Accuracy:         0.3876 (±0.0085)
+Num Samples:      436
+Num Schemes:      25
+CV Folds:         5
+
+Per-Fold Results:
+  Fold 1: Acc=0.3864  F1=0.3583  Prec=0.3912  Recall=0.3800
+  Fold 2: Acc=0.4023  F1=0.3807  Prec=0.4003  Recall=0.4033
+  Fold 3: Acc=0.3793  F1=0.3646  Prec=0.3808  Recall=0.3833
+  Fold 4: Acc=0.3908  F1=0.3516  Prec=0.3781  Recall=0.4067
+  Fold 5: Acc=0.3793  F1=0.3380  Prec=0.3287  Recall=0.3800
+
+Detailed Per-Class Report (Cross-Validated):
+                      precision    recall  f1-score   support
+
+        atal-pension       0.17      0.11      0.13        18
+     ayushman-bharat       0.21      0.18      0.19        17
+         beti-bachao       0.23      0.53      0.32        19
+  disability-pension       1.00      1.00      1.00        16
+         free-ration       0.30      0.20      0.24        15
+   maternity-benefit       0.00      0.00      0.00        20
+minority-scholarship       0.95      1.00      0.97        19
+          mudra-loan       0.15      0.12      0.13        17
+               nrega       0.33      0.18      0.23        17
+     nsp-post-matric       0.89      0.50      0.64        16
+  nsp-st-scholarship       1.00      0.67      0.80        15
+     obc-scholarship       0.59      1.00      0.75        19
+     old-age-pension       0.41      1.00      0.59        17
+            pm-kisan       0.53      0.50      0.52        16
+                pmay       0.50      0.06      0.11        16
+               pmegp       0.00      0.00      0.00        17
+               pmfby       0.53      0.56      0.55        16
+               pmjdy       0.20      0.30      0.24        20
+              pmjjby       0.05      0.05      0.05        19
+               pmsby       0.00      0.00      0.00        18
+         skill-india       0.00      0.00      0.00        17
+       standup-india       0.16      0.16      0.16        19
+   sukanya-samriddhi       0.11      0.12      0.11        17
+             ujjwala       0.40      0.47      0.43        17
+       widow-pension       1.00      1.00      1.00        19
+
+            accuracy                           0.39       436
+           macro avg       0.39      0.39      0.37       436
+        weighted avg       0.38      0.39      0.36       436
+

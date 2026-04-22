@@ -1,0 +1,30 @@
+======================================================================
+RECOMMENDATION ENGINE METRICS — GovScheme Advisor
+======================================================================
+
+Average Precision@5:    0.6200
+Mean Reciprocal Rank:   0.8683
+Profiles Evaluated:     20
+
+Per-Profile Breakdown:
+  Profile  1: P@5=0.80  RR=1.0000  | gender=male, age=35, caste=obc
+  Profile  2: P@5=0.40  RR=1.0000  | gender=female, age=20, caste=sc
+  Profile  3: P@5=0.80  RR=1.0000  | gender=female, age=55, caste=general
+  Profile  4: P@5=0.40  RR=1.0000  | gender=male, age=65, caste=st
+  Profile  5: P@5=0.40  RR=1.0000  | gender=female, age=22, caste=st
+  Profile  6: P@5=0.80  RR=1.0000  | gender=male, age=28, caste=general
+  Profile  7: P@5=0.80  RR=1.0000  | gender=female, age=25, caste=obc
+  Profile  8: P@5=0.40  RR=1.0000  | gender=male, age=45, caste=sc
+  Profile  9: P@5=0.80  RR=1.0000  | gender=female, age=30, caste=sc
+  Profile 10: P@5=0.80  RR=0.5000  | gender=male, age=19, caste=ews
+  Profile 11: P@5=0.20  RR=0.2000  | gender=female, age=26, caste=general
+  Profile 12: P@5=0.80  RR=1.0000  | gender=male, age=40, caste=obc
+  Profile 13: P@5=0.60  RR=1.0000  | gender=female, age=70, caste=sc
+  Profile 14: P@5=0.60  RR=1.0000  | gender=male, age=50, caste=general
+  Profile 15: P@5=0.60  RR=1.0000  | gender=female, age=18, caste=st
+  Profile 16: P@5=0.60  RR=0.3333  | gender=male, age=30, caste=sc
+  Profile 17: P@5=0.80  RR=1.0000  | gender=female, age=35, caste=obc
+  Profile 18: P@5=0.80  RR=1.0000  | gender=male, age=22, caste=general
+  Profile 19: P@5=0.40  RR=0.3333  | gender=female, age=28, caste=sc
+  Profile 20: P@5=0.60  RR=1.0000  | gender=male, age=55, caste=obc
+

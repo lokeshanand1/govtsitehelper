@@ -10,6 +10,8 @@ from jose import jwt, JWTError
 from passlib.context import CryptContext
 import os
 
+import time
+
 from models import UserProfile, SearchQuery, UserAuth, Token, SchemeModel
 from database import get_db
 from nlp.engine import nlp_engine
@@ -91,15 +93,18 @@ async def login(user: UserAuth):
 
 
 # ──────────────────────────────────────────────
-# RECOMMENDATION ENDPOINT (MAIN)
+# RECOMMENDATION ENDPOINT (MAIN) — with timing
 # ──────────────────────────────────────────────
 
 @router.post("/recommend")
 async def recommend_schemes(profile: UserProfile):
     """Main endpoint: takes user profile form data, returns NLP-ranked scheme recommendations."""
+    t_start = time.time()
+
     profile_dict = profile.model_dump()
     
     # Load schemes from DB
+    t_db_start = time.time()
     db = get_db()
     schemes = []
     async for s in db.schemes.find({"status": "active"}):
@@ -109,15 +114,28 @@ async def recommend_schemes(profile: UserProfile):
     if not schemes:
         # Fallback to seed data
         schemes = SCHEMES
+    t_db_end = time.time()
     
     # Load into NLP engine and recommend
+    t_nlp_start = time.time()
     nlp_engine.load_schemes(schemes)
     results = nlp_engine.recommend(profile_dict, top_k=30)
+    t_nlp_end = time.time()
     
+    t_end = time.time()
+
+    # Timing metrics (in milliseconds)
+    timing = {
+        "db_fetch_ms": round((t_db_end - t_db_start) * 1000, 2),
+        "nlp_pipeline_ms": round((t_nlp_end - t_nlp_start) * 1000, 2),
+        "total_ms": round((t_end - t_start) * 1000, 2),
+    }
+
     # Categorize results
     categorized = {
         "total": len(results),
         "classifier_used": nlp_engine.classifier_available,
+        "timing": timing,
         "all": results,
         "scholarship": [r for r in results if r["category"] == "scholarship"],
         "pension": [r for r in results if r["category"] == "pension"],
@@ -129,6 +147,48 @@ async def recommend_schemes(profile: UserProfile):
     }
     
     return categorized
+
+
+@router.post("/recommend/benchmark")
+async def benchmark_recommend(profile: UserProfile):
+    """Benchmark endpoint: measures exact execution time of the hybrid NLP pipeline."""
+    t_total_start = time.time()
+
+    profile_dict = profile.model_dump()
+
+    # --- Phase 1: DB fetch ---
+    t_db_start = time.time()
+    db = get_db()
+    schemes = []
+    async for s in db.schemes.find({"status": "active"}):
+        s.pop("_id", None)
+        schemes.append(s)
+    if not schemes:
+        schemes = SCHEMES
+    t_db_end = time.time()
+
+    # --- Phase 2: Scheme indexing (TF-IDF fit) ---
+    t_index_start = time.time()
+    nlp_engine.load_schemes(schemes)
+    t_index_end = time.time()
+
+    # --- Phase 3: Rule-based + TF-IDF + Classifier scoring ---
+    t_rec_start = time.time()
+    results = nlp_engine.recommend(profile_dict, top_k=30)
+    t_rec_end = time.time()
+
+    t_total_end = time.time()
+
+    return {
+        "total_results": len(results),
+        "classifier_used": nlp_engine.classifier_available,
+        "timing_ms": {
+            "db_fetch": round((t_db_end - t_db_start) * 1000, 2),
+            "tfidf_indexing": round((t_index_end - t_index_start) * 1000, 2),
+            "recommendation_scoring": round((t_rec_end - t_rec_start) * 1000, 2),
+            "total_end_to_end": round((t_total_end - t_total_start) * 1000, 2),
+        }
+    }
 
 
 # ──────────────────────────────────────────────

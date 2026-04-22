@@ -7,7 +7,8 @@ GovScheme Advisor is a complete full-stack web application that uses Natural Lan
 - **Frontend**: React, Vite, Tailwind CSS, React Router DOM, Lucide Icons.
 - **Backend**: Python FastAPI.
 - **Database**: MongoDB (via Motor async driver).
-- **NLP Engine**: `scikit-learn` (TF-IDF Vectorization & Cosine Similarity) + Rule-Based Engine.
+- **NLP Engine**: `scikit-learn` (TF-IDF Vectorization & Cosine Similarity) + Rule-Based Engine + Trainable ML Classifier.
+- **ML Classifier**: TF-IDF → OneVsRest Logistic Regression pipeline (trained on synthetic demographic data).
 - **Web Scraper**: `BeautifulSoup`, `Requests`.
 
 ## 🧠 Recommendation Logic & Training Data
@@ -23,7 +24,11 @@ The NLP engine is **not** a large pre-trained LLM (like GPT or Llama). Instead, 
 
 2. **Semantic Matching (TF-IDF)**: After rule-based filtering, the engine converts the user's profile into a descriptive natural language string. It uses a **TF-IDF Vectorizer** (Term Frequency-Inverse Document Frequency) trained dynamically on the loaded scheme dataset to calculate **Cosine Similarity** between the user's profile text and the scheme's text (description, eligibility text, benefits, and tags).
 
-3. **Scoring System**: The final rank is calculated by weighting the rule-based eligibility score, the NLP relevance score, and priority boosts for specific categories (e.g., student scholarships, farmer aids).
+3. **Trainable ML Classifier**: A `scikit-learn` pipeline (TF-IDF + OneVsRest Logistic Regression) trained on synthetic user profile data generated from scheme eligibility rules. It provides a classifier confidence boost to the final score. The model is persisted as a `.pkl` file and hot-loaded at server startup.
+
+4. **Scoring System**: The final rank is calculated using a weighted formula:
+   - **With classifier**: `(0.4 × rule_score) + (0.4 × tfidf_score) + (0.2 × classifier_boost)`
+   - **Without classifier**: `(0.5 × rule_score) + (0.35 × tfidf_score) + (0.15 × priority_boost)`
 
 ### What data is it trained/seeded on?
 
@@ -45,6 +50,66 @@ Additionally, the project includes a **Web Scraper** (`backend/scraper/scraper.p
 - `scholarships.gov.in`
 - Wikipedia pages
 
+## 📊 Evaluation Metrics
+
+The system was evaluated across three categories to measure ML accuracy, recommendation quality, and system performance.
+
+### 1. ML Classification Metrics (5-Fold Cross-Validation)
+
+| Metric | Value |
+|---|---|
+| **Macro F1-Score** | 0.3587 (±0.0141) |
+| **Macro Precision** | 0.3758 (±0.0249) |
+| **Macro Recall** | 0.3907 (±0.0118) |
+| **Accuracy** | 0.3876 (±0.0085) |
+| Training Samples | 436 |
+| Classes (Schemes) | 25 |
+| CV Folds | 5 |
+
+> **Note:** The classifier operates on 25-class synthetic data with ~17 samples per class. Schemes with distinctive eligibility features achieve near-perfect classification (e.g., `disability-pension` F1=1.00, `widow-pension` F1=1.00, `minority-scholarship` F1=0.97). Generic schemes with broad eligibility overlap are harder to distinguish. The classifier serves as a **supplementary signal** — the primary ranking comes from rule-based filtering and TF-IDF semantic matching.
+
+### 2. Recommendation Engine Metrics
+
+| Metric | Value |
+|---|---|
+| **Precision@5** | 0.6200 |
+| **Mean Reciprocal Rank (MRR)** | 0.8683 |
+| Profiles Evaluated | 20 |
+
+Evaluated using 20 diverse mock user profiles (varying age, income, caste, gender, and tags like student/farmer/BPL) with manually defined ground-truth expected schemes.
+
+### 3. System Performance & API Latency
+
+| Metric | Value |
+|---|---|
+| **Avg End-to-End API Latency** | 17.30 ms |
+| **Median Latency** | 15.91 ms |
+| **P95 Latency** | 24.40 ms |
+| Min / Max Latency | 15.21 / 45.27 ms |
+| Requests (50/50 successful) | 100% |
+
+**Server-Side Breakdown (avg):**
+
+| Component | Latency |
+|---|---|
+| DB Fetch (MongoDB) | 1.33 ms |
+| TF-IDF Indexing | 2.34 ms |
+| Recommendation Scoring | 5.44 ms |
+| Server Total | 9.12 ms |
+
+### Evaluation Scripts
+
+| Script | Purpose |
+|---|---|
+| `nlp_pipeline.py --evaluate` | 5-fold CV classification metrics |
+| `backend/test_recsys_metrics.py` | Precision@5 & MRR evaluation |
+| `backend/test_latency.py` | 50-request API latency benchmark |
+
+Results are saved to:
+- `backend/metrics_classification_results.txt`
+- `backend/metrics_recsys_results.txt`
+- `backend/metrics_latency_results.txt`
+
 ## 📦 How to Run
 
 1. Ensure you have **MongoDB** running locally on port `27017` (default).
@@ -62,22 +127,46 @@ This script will automatically:
 - Boot the FastAPI backend on `http://localhost:8000`.
 - Boot the Vite React frontend on `http://localhost:5173`.
 
+### Running Evaluation Scripts
+
+```bash
+# Train classifier and generate classification report
+python nlp_pipeline.py --train
+
+# Run 5-fold cross-validation
+python nlp_pipeline.py --evaluate
+
+# Run recommendation engine metrics (standalone, no server needed)
+cd backend && python test_recsys_metrics.py
+
+# Run API latency benchmark (requires server running on port 8000)
+cd backend && python test_latency.py
+```
+
 ## 📂 Project Structure
 
 ```
 govtsitehelper/
 ├── start.sh                      # Unified startup script
+├── nlp_pipeline.py               # CLI: train, evaluate, predict classifier
 ├── backend/                      # FastAPI Backend
 │   ├── main.py                   # App entrypoint & Lifespan events
 │   ├── database.py               # MongoDB connection
 │   ├── models.py                 # Pydantic schemas
 │   ├── seed_data.py              # 25 real Government Schemes
 │   ├── nlp/
-│   │   └── engine.py             # Rule-based + TF-IDF Recommendation logic
+│   │   ├── engine.py             # Rule-based + TF-IDF + Classifier logic
+│   │   ├── trainer.py            # ML classifier training & persistence
+│   │   └── models/               # Saved .pkl model files
 │   ├── api/
 │   │   └── routes.py             # API Endpoints (Auth, Recommend, Search, Admin)
-│   └── scraper/
-│       └── scraper.py            # Web Scraper (BeautifulSoup)
+│   ├── scraper/
+│   │   └── scraper.py            # Web Scraper (BeautifulSoup)
+│   ├── test_recsys_metrics.py    # Evaluation: Precision@5 & MRR
+│   ├── test_latency.py           # Evaluation: API latency benchmark
+│   ├── metrics_classification_results.txt
+│   ├── metrics_recsys_results.txt
+│   └── metrics_latency_results.txt
 └── frontend/                     # React Frontend
     ├── index.html
     ├── vite.config.js            # Vite config with Proxy to Backend
