@@ -15,11 +15,19 @@ const Search = () => {
     setLoading(true);
     try {
       let data;
-      try {
-        const response = await axios.post('/api/search', { query, language: 'en' });
-        data = response.data;
-      } catch {
-        // Fallback: client-side search
+      const isStaticHost = window.location.hostname.includes('github.io') || !window.location.port;
+
+      if (!isStaticHost) {
+        try {
+          const response = await axios.post('/api/search', { query, language: 'en' }, { timeout: 3000 });
+          data = response.data;
+        } catch {
+          data = null;
+        }
+      }
+
+      if (!data) {
+        // Client-side search fallback
         const searchResults = semanticSearch(query, 15);
         data = {
           query,

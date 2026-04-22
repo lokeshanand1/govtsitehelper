@@ -69,12 +69,21 @@ const Home = () => {
       };
 
       let data;
-      try {
-        // Try backend API first
-        const response = await axios.post('/api/recommend', payload);
-        data = response.data;
-      } catch {
-        // Fallback: client-side recommendation engine (for GitHub Pages)
+      const isStaticHost = window.location.hostname.includes('github.io') || !window.location.port;
+
+      if (!isStaticHost) {
+        try {
+          // Try backend API when running locally
+          const response = await axios.post('/api/recommend', payload, { timeout: 3000 });
+          data = response.data;
+        } catch {
+          // Fallback if backend not available
+          data = null;
+        }
+      }
+
+      if (!data) {
+        // Client-side recommendation engine (for GitHub Pages / no backend)
         const results = recommend(payload, 30);
         data = {
           total: results.length,
