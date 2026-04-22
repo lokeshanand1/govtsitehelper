@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Landmark, CheckCircle2, FileText, Globe } from 'lucide-react';
+import { recommend } from '../engine/recommend.js';
 
 const Home = () => {
   const navigate = useNavigate();
@@ -67,11 +68,31 @@ const Home = () => {
         annual_family_income: parseInt(formData.annual_family_income) || 0,
       };
 
-      const response = await axios.post('/api/recommend', payload);
-      navigate('/dashboard', { state: { results: response.data, profile: payload } });
+      let data;
+      try {
+        // Try backend API first
+        const response = await axios.post('/api/recommend', payload);
+        data = response.data;
+      } catch {
+        // Fallback: client-side recommendation engine (for GitHub Pages)
+        const results = recommend(payload, 30);
+        data = {
+          total: results.length,
+          classifier_used: false,
+          all: results,
+          scholarship: results.filter(r => r.category === 'scholarship'),
+          pension: results.filter(r => r.category === 'pension'),
+          women: results.filter(r => r.category === 'women'),
+          student: results.filter(r => ['scholarship', 'student'].includes(r.category)),
+          farmer: results.filter(r => r.category === 'farmer'),
+          employment: results.filter(r => ['employment', 'startup'].includes(r.category)),
+          health: results.filter(r => ['health', 'insurance'].includes(r.category)),
+        };
+      }
+      navigate('/dashboard', { state: { results: data, profile: payload } });
     } catch (error) {
       console.error('Error fetching recommendations:', error);
-      alert('Failed to fetch recommendations. Please ensure backend is running.');
+      alert('Failed to fetch recommendations. Please try again.');
     } finally {
       setLoading(false);
     }

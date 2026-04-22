@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { HashRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Search from './pages/Search';
 import Dashboard from './pages/Dashboard';
@@ -7,7 +7,7 @@ import Navbar from './components/Navbar';
 
 function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <div className="min-h-screen flex flex-col font-sans">
         <Navbar />
         <main className="flex-grow">
@@ -21,7 +21,7 @@ function App() {
           <p>© {new Date().getFullYear()} GovScheme Advisor. This is an educational project.</p>
         </footer>
       </div>
-    </BrowserRouter>
+    </HashRouter>
   );
 }
 

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Search as SearchIcon, ExternalLink, ShieldCheck, ArrowRight } from 'lucide-react';
+import { semanticSearch } from '../engine/recommend.js';
 
 const Search = () => {
   const [query, setQuery] = useState('');
@@ -13,8 +14,29 @@ const Search = () => {
 
     setLoading(true);
     try {
-      const response = await axios.post('/api/search', { query, language: 'en' });
-      setResults(response.data);
+      let data;
+      try {
+        const response = await axios.post('/api/search', { query, language: 'en' });
+        data = response.data;
+      } catch {
+        // Fallback: client-side search
+        const searchResults = semanticSearch(query, 15);
+        data = {
+          query,
+          total: searchResults.length,
+          results: searchResults.map(({ scheme, score }) => ({
+            name: scheme.name,
+            name_hindi: scheme.name_hindi || "",
+            description: scheme.description,
+            category: scheme.category,
+            relevance_score: Math.round(score * 1000) / 10,
+            benefits: scheme.benefits,
+            apply_link: scheme.apply_link,
+            eligibility_text: scheme.eligibility_text,
+          }))
+        };
+      }
+      setResults(data);
     } catch (error) {
       console.error('Search error:', error);
     } finally {
