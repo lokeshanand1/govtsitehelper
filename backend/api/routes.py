@@ -299,21 +299,60 @@ async def delete_scheme(scheme_id: str):
 # ──────────────────────────────────────────────
 
 @router.post("/admin/scrape", dependencies=[Depends(require_admin)])
-async def trigger_scraper():
-    """Trigger web scraper to fetch new schemes."""
-    scraped = run_full_scrape()
+async def trigger_scraper(max_pages: int = 200, merge: bool = True):
+    """Trigger enhanced web scraper to fetch schemes from Wikipedia.
+
+    Args:
+        max_pages: Max individual scheme pages to scrape (default 200)
+        merge: If True, insert new schemes directly into the main schemes
+               collection and reload NLP engine. If False, insert into
+               scraped_schemes for manual review.
+    """
+    scraped = run_full_scrape(max_detail_pages=max_pages)
     db = get_db()
     inserted = 0
+    skipped = 0
+
     for s in scraped:
-        if s.get("name"):
-            s["status"] = "pending_review"
-            s["created_at"] = datetime.utcnow()
-            try:
-                await db.scraped_schemes.insert_one(s)
-                inserted += 1
-            except Exception:
-                pass
-    return {"message": f"Scraped {len(scraped)} schemes, inserted {inserted} new entries"}
+        if not s.get("name") or not s.get("description"):
+            continue
+
+        s["status"] = "active" if merge else "pending_review"
+        s["created_at"] = datetime.utcnow()
+        s["updated_at"] = datetime.utcnow()
+
+        target_collection = db.schemes if merge else db.scraped_schemes
+
+        # Upsert: skip if scheme_id already exists
+        existing = await target_collection.find_one(
+            {"scheme_id": s.get("scheme_id")}
+        )
+        if existing:
+            skipped += 1
+            continue
+
+        try:
+            await target_collection.insert_one(s)
+            inserted += 1
+        except Exception:
+            pass
+
+    # Reload NLP engine with new schemes if merged
+    if merge and inserted > 0:
+        schemes_list = []
+        async for doc in db.schemes.find({"status": "active"}):
+            doc.pop("_id", None)
+            schemes_list.append(doc)
+        nlp_engine.load_schemes(schemes_list)
+
+    total_now = await db.schemes.count_documents({"status": "active"})
+
+    return {
+        "message": f"Scraped {len(scraped)} schemes, inserted {inserted} new, skipped {skipped} existing",
+        "total_schemes_now": total_now,
+        "inserted": inserted,
+        "skipped": skipped,
+    }
 
 
 @router.get("/admin/analytics", dependencies=[Depends(require_admin)])

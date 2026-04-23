@@ -126,5 +126,5 @@ async def root():
 @app.get("/health")
 async def health():
     db = get_db()
-    scheme_count = await db.schemes.count_documents({}) if db else 0
+    scheme_count = await db.schemes.count_documents({}) if db is not None else 0
     return {"status": "healthy", "schemes_loaded": scheme_count}

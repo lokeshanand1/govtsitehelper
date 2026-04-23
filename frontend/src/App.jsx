@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
 import Search from './pages/Search';
 import Dashboard from './pages/Dashboard';
+import Admin from './pages/Admin';
 import Navbar from './components/Navbar';
 
 function App() {
@@ -15,6 +16,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/search" element={<Search />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/admin" element={<Admin />} />
           </Routes>
         </main>
         <footer className="bg-slate-900 text-slate-400 py-8 text-center">
