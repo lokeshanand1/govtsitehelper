@@ -32,7 +32,7 @@ The NLP engine is **not** a large pre-trained LLM (like GPT or Llama). Instead, 
 
 ### What data is it trained/seeded on?
 
-The system is seeded with **25 real Indian Government Schemes**. When the backend starts up, it automatically inserts these schemes into the database and trains the TF-IDF vectorizer on them. 
+The system contains **243 real Indian Government Schemes**. It is initially seeded with 25 manually curated schemes, and further expanded using a custom intelligent web scraper that pulls data from Wikipedia. 
 
 Some of the seeded schemes include:
 - PM-KISAN Samman Nidhi
@@ -45,11 +45,13 @@ Some of the seeded schemes include:
 - Sukanya Samriddhi Yojana
 - MUDRA Loan Yojana
 
-Additionally, the project includes a **Web Scraper** (`backend/scraper/scraper.py`) capable of extracting new schemes from sources like:
-- `myscheme.gov.in`
-- `scholarships.gov.in`
-- Wikipedia pages
+Additionally, the project includes an **Intelligent NLP Web Scraper** (`backend/scraper/scraper.py`) that:
+- Scrapes the comprehensive "List of government schemes in India" from Wikipedia.
+- Visits individual scheme pages to extract descriptions and benefits.
+- Uses NLP keyword analysis to **auto-categorize** schemes and **extract eligibility rules** (age, gender, BPL status, etc.).
+- Automatically structures and inserts the scraped schemes into MongoDB.
 
+The system also features an **Admin Dashboard** (available at `/admin` on the frontend) where you can view live database analytics, check the NLP model status, and trigger the Wikipedia scraper to refresh the database with a single click.
 ## 📊 Evaluation Metrics
 
 The system was evaluated across three categories to measure ML accuracy, recommendation quality, and system performance.
@@ -178,5 +180,6 @@ govtsitehelper/
         └── pages/
             ├── Home.jsx          # Multi-column form UI
             ├── Search.jsx        # NLP Semantic Search UI
-            └── Dashboard.jsx     # Result ranking & details UI
+            ├── Dashboard.jsx     # Result ranking & details UI
+            └── Admin.jsx         # Admin Dashboard for DB & Scraper management
 ```
